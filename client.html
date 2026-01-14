@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wake Word System Monitor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 14px;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .status-running {
+            background: #10b981;
+            color: white;
+        }
+        
+        .status-stopped {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .status-waiting {
+            background: #000000;
+            color: white;
+        }
+        
+        .subtitle {
+            color: #6b7280;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 20px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        
+        .status-item {
+            padding: 12px;
+            background: #f3f4f6;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 4px solid #667eea;
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
+        .command-item {
+            padding: 15px;
+            background: #eff6ff;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 4px solid #3b82f6;
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        .response-item {
+            padding: 15px;
+            background: #f0fdf4;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border-left: 4px solid #10b981;
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        .response-command {
+            font-weight: bold;
+            color: #3b82f6;
+            margin-bottom: 8px;
+        }
+        
+        .response-text {
+            color: #374151;
+            line-height: 1.5;
+        }
+        
+        .timestamp {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 5px;
+        }
+        
+        .empty-state {
+            text-align: center;
+            color: #9ca3af;
+            padding: 30px;
+            font-style: italic;
+        }
+        
+        .progress-bar {
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.3s;
+        }
+        
+        .listening-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            background: #10b981;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: blink 1.5s infinite;
+        }
+        
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        
+        .connection-status {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            font-size: 14px;
+        }
+        
+        .connection-online {
+            color: #10b981;
+        }
+        
+        .connection-offline {
+            color: #ef4444;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>AI Chat Agent</h1>
+            <div id="systemStatus" class="status-badge status-waiting">
+                <span class="listening-indicator"></span>
+                Inicializando...
+            </div>
+            <div class="subtitle">Monitoramento em tempo real - Sistema automático</div>
+        </div>
+        
+        <div class="grid">
+            <div class="card">
+                <h2> Status Atual</h2>
+                <div id="statusContainer">
+                    <div class="empty-state">Conectando ao sistema...</div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2> Comandos Detectados</h2>
+                <div id="commandsContainer">
+                    <div class="empty-state">Aguardando comandos...</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>Respostas do Agente</h2>
+            <div id="responsesContainer">
+                <div class="empty-state">Aguardando interações...</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="connection-status">
+        <span id="connectionIndicator" class="connection-offline"> Conectando...</span>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5000';
+        let updateInterval;
+        let commandCount = 0;
+        let responseCount = 0;
+
+        async function checkAndStartSystem() {
+            try {
+                // Verificar se o sistema já está rodando
+                const healthResponse = await fetch(`${API_URL}/health`);
+                const healthData = await healthResponse.json();
+                
+                if (!healthData.system_running) {
+                    console.log('Sistema não está rodando, iniciando...');
+                    
+                    const startResponse = await fetch(`${API_URL}/start`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            wake_words: ['andador', 'lina'],
+                            command_duration: 15
+                        })
+                    });
+                    
+                    if (startResponse.ok) {
+                        console.log(' Sistema iniciado automaticamente');
+                        updateConnectionStatus(true);
+                    }
+                } else {
+                    console.log('Sistema já está rodando');
+                    updateConnectionStatus(true);
+                }
+                
+                startAutoUpdate();
+                
+            } catch (error) {
+                console.error(' Erro ao conectar:', error);
+                updateConnectionStatus(false);
+                // Tentar novamente em 5 segundos
+                setTimeout(checkAndStartSystem, 5000);
+            }
+        }
+
+        function updateConnectionStatus(online) {
+            const indicator = document.getElementById('connectionIndicator');
+            if (online) {
+                indicator.className = 'connection-online';
+                indicator.textContent = ' Conectado';
+            } else {
+                indicator.className = 'connection-offline';
+                indicator.textContent = ' Desconectado';
+            }
+        }
+
+        async function updateStatus() {
+            try {
+                const response = await fetch(`${API_URL}/status`);
+                const data = await response.json();
+                
+                updateConnectionStatus(true);
+                
+                // Atualizar badge do sistema
+                const statusBadge = document.getElementById('systemStatus');
+                if (data.system_running) {
+                    const statusText = data.current_status || 'Aguardando wake word';
+                    statusBadge.innerHTML = `<span class="listening-indicator"></span>${statusText}`;
+                    statusBadge.className = 'status-badge status-running';
+                } else {
+                    statusBadge.innerHTML = ' Sistema Parado';
+                    statusBadge.className = 'status-badge status-stopped';
+                }
+                
+                // Atualizar status atual
+                const container = document.getElementById('statusContainer');
+                if (data.updates && data.updates.length > 0) {
+                    container.innerHTML = data.updates.map(update => `
+                        <div class="status-item">
+                            <strong>${update.status}</strong>
+                            ${update.wake_word ? `<br><small>✨ Palavra detectada: <strong>${update.wake_word}</strong></small>` : ''}
+                            ${update.progress ? `
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: ${update.progress}%"></div>
+                                </div>
+                                <small>${update.progress}%</small>
+                            ` : ''}
+                            <div class="timestamp">${new Date().toLocaleTimeString()}</div>
+                        </div>
+                    `).join('');
+                } else {
+                    container.innerHTML = `
+                        <div class="status-item">
+                            <strong>${data.current_status || 'Aguardando wake word'}</strong>
+                            <div class="timestamp">${new Date().toLocaleTimeString()}</div>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Erro ao atualizar status:', error);
+                updateConnectionStatus(false);
+            }
+        }
+
+        async function updateCommands() {
+            try {
+                const response = await fetch(`${API_URL}/commands`);
+                const data = await response.json();
+                
+                const container = document.getElementById('commandsContainer');
+                if (data.commands && data.commands.length > 0) {
+                    // Atualizar contador
+                    commandCount += data.commands.length;
+                    
+                    // Manter histórico limitado (últimos 10)
+                    const existingCommands = container.querySelectorAll('.command-item');
+                    const existingHTML = Array.from(existingCommands).map(el => el.outerHTML).join('');
+                    
+                    const newCommands = data.commands.map(cmd => `
+                        <div class="command-item">
+                            <strong> ${cmd.command}</strong>
+                            <div class="timestamp">${new Date().toLocaleTimeString()}</div>
+                        </div>
+                    `).join('');
+                    
+                    container.innerHTML = newCommands + existingHTML;
+                    
+                    // Limitar a 10 itens
+                    const allItems = container.querySelectorAll('.command-item');
+                    if (allItems.length > 10) {
+                        for (let i = 10; i < allItems.length; i++) {
+                            allItems[i].remove();
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Erro ao atualizar comandos:', error);
+            }
+        }
+
+        async function updateResponses() {
+            try {
+                const response = await fetch(`${API_URL}/responses`);
+                const data = await response.json();
+                
+                const container = document.getElementById('responsesContainer');
+                if (data.responses && data.responses.length > 0) {
+                    responseCount += data.responses.length;
+                    
+                    const existingResponses = container.querySelectorAll('.response-item');
+                    const existingHTML = Array.from(existingResponses).map(el => el.outerHTML).join('');
+                    
+                    const newResponses = data.responses.map(item => `
+                        <div class="response-item">
+                            <div class="response-command"> Comando: ${item.command}</div>
+                            <div class="response-text"> Resposta: ${item.response}</div>
+                            <div class="timestamp">${new Date().toLocaleTimeString()}</div>
+                        </div>
+                    `).join('');
+                    
+                    container.innerHTML = newResponses + existingHTML;
+                    
+                    const allItems = container.querySelectorAll('.response-item');
+                    if (allItems.length > 5) {
+                        for (let i = 5; i < allItems.length; i++) {
+                            allItems[i].remove();
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Erro ao atualizar respostas:', error);
+            }
+        }
+
+        function refreshAll() {
+            updateStatus();
+            updateCommands();
+            updateResponses();
+        }
+
+        function startAutoUpdate() {
+            if (updateInterval) clearInterval(updateInterval);
+            updateInterval = setInterval(refreshAll, 1000);
+        }
+
+        
+        window.onload = async () => {
+            console.log(' Iniciando monitoramento automático...');
+            await checkAndStartSystem();
+        };
+        
+        
+        setInterval(async () => {
+            try {
+                await fetch(`${API_URL}/health`);
+                updateConnectionStatus(true);
+            } catch {
+                updateConnectionStatus(false);
+            }
+        }, 10000);
+    </script>
+</body>
+</html>
